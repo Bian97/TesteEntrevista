@@ -1,0 +1,51 @@
+name: vendas
+
+services:
+  db:
+    container_name: vendas_sqlserver
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:?defina MSSQL_SA_PASSWORD no .env}
+      - TZ=America/Sao_Paulo
+    ports:
+      - "1434:1433"
+    volumes:
+      - sqlserverdata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - vendas_network
+
+  api:
+    container_name: vendas_api
+    image: vendas-api:net10
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Vendas.API/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:8080
+      - BancoConfig__ConnectionString=Server=vendas_sqlserver,1433;Database=${MSSQL_DATABASE:-VendasDb};User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - TZ=America/Sao_Paulo
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - vendas_network
+
+volumes:
+  sqlserverdata:
+    driver: local
+
+networks:
+  vendas_network:
+    driver: bridge

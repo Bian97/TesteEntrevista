@@ -1,0 +1,1 @@
+SELECT CASE WHEN EXISTS(SELECT 1 FROM Cliente WHERE Cpf = @Cpf AND (@IgnorarId IS NULL OR Id <> @IgnorarId)) THEN 1 ELSE 0 END;
